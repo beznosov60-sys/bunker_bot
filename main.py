@@ -1,6 +1,7 @@
 import uuid
 import logging
 from pathlib import Path
+from typing import Optional
 
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -30,8 +31,8 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
     await websocket.accept()
     logger.info("WebSocket connected: %s", websocket.client)
 
-    current_room_id: str | None = None
-    current_player_id: str | None = None
+    current_room_id: Optional[str] = None
+    current_player_id: Optional[str] = None
 
     async def push_room_update(room_id: str) -> None:
         room = GameManager.get_room(room_id)

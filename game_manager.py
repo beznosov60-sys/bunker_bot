@@ -3,7 +3,7 @@ import string
 from collections import Counter
 from dataclasses import dataclass, field
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import WebSocket
 
@@ -78,14 +78,14 @@ class Player:
 class GameRoom:
     id: str
     players: dict[str, Player] = field(default_factory=dict)
-    owner_id: str | None = None
+    owner_id: Optional[str] = None
     state: str = "lobby"
     round: int = 1
     phase: str = "lobby"
     votes: dict[str, str] = field(default_factory=dict)
-    disaster: str | None = None
-    bunker: str | None = None
-    survival_condition: str | None = None
+    disaster: Optional[str] = None
+    bunker: Optional[str] = None
+    survival_condition: Optional[str] = None
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -122,7 +122,7 @@ class GameManager:
         return room
 
     @staticmethod
-    def get_room(room_id: str) -> GameRoom | None:
+    def get_room(room_id: str) -> Optional[GameRoom]:
         return rooms.get(room_id)
 
     @staticmethod
@@ -186,7 +186,7 @@ class GameManager:
         await GameManager.broadcast(room, {"event": "game_started", "data": room.snapshot()})
 
     @staticmethod
-    async def reveal_card(room: GameRoom, player_id: str, card_key: str) -> dict[str, Any] | None:
+    async def reveal_card(room: GameRoom, player_id: str, card_key: str) -> Optional[dict[str, Any]]:
         player = room.players.get(player_id)
         if not player or card_key not in player.cards:
             logger.warning("Invalid reveal card request room=%s player=%s card=%s", room.id, player_id, card_key)
@@ -205,7 +205,7 @@ class GameManager:
         return payload
 
     @staticmethod
-    async def vote(room: GameRoom, voter_id: str, target_id: str) -> dict[str, Any] | None:
+    async def vote(room: GameRoom, voter_id: str, target_id: str) -> Optional[dict[str, Any]]:
         voter = room.players.get(voter_id)
         target = room.players.get(target_id)
         if not voter or not target or not voter.is_alive or not target.is_alive:
