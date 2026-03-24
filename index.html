@@ -160,11 +160,19 @@
         };
 
         state.ws.onmessage = (event) => {
+          if (typeof event.data !== "string") {
+            logError("Получено неподдерживаемое сообщение WebSocket");
+            return;
+          }
+
+          const payload = event.data.trim();
+          if (!payload) return;
+
           let msg;
           try {
-            msg = JSON.parse(event.data);
-          } catch (error) {
-            logError(`Системное сообщение: ${event.data}`, error);
+            msg = JSON.parse(payload);
+          } catch (_error) {
+            logInfo(`Системное сообщение: ${payload}`);
             return;
           }
 
