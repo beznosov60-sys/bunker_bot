@@ -65,6 +65,19 @@
         background: #ff8b44;
         color: #fef3e8;
       }
+      .icon-btn {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+        font-size: 14px;
+      }
+      .card-active {
+        outline: 3px solid rgba(251, 191, 36, 0.9);
+        outline-offset: 2px;
+      }
       @keyframes fadeIn {
         from {
           opacity: 0;
@@ -109,13 +122,18 @@
       <section id="game" class="hidden mt-4 sm:mt-6 fade-in space-y-4 sm:space-y-6">
         <div class="soft-card p-4 sm:p-5">
           <div class="flex flex-wrap gap-2 sm:gap-3 items-center justify-between text-sm">
-            <span class="chip px-3 py-1.5">Комната: <b id="roomIdLabel"></b></span>
+            <div class="flex items-center gap-2">
+              <span class="chip px-3 py-1.5">Комната: <b id="roomIdLabel"></b></span>
+              <button id="copyRoomBtn" class="px-3 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 transition">Скопировать ID</button>
+            </div>
             <span class="chip px-3 py-1.5">Раунд: <b id="roundLabel">1</b></span>
             <span class="chip px-3 py-1.5">Фаза: <b id="phaseLabel">lobby</b></span>
-            <button id="copyRoomBtn" class="px-3 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 transition">Скопировать ID</button>
-            <button id="startGameBtn" class="px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 transition">Старт игры</button>
+            <div id="adminControls" class="flex items-center gap-2">
+              <button id="startGameBtn" class="px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 transition">Старт игры</button>
+              <button id="deleteRoomBtn" class="px-3 py-2 rounded-xl bg-rose-700 hover:bg-rose-600 transition">Удалить комнату</button>
+            </div>
           </div>
-          <div class="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
+          <div id="worldStatePanel" class="mt-4 hidden grid sm:grid-cols-3 gap-3 text-sm">
             <div class="chip p-3"><span class="text-slate-400">Катастрофа:</span><br /><span id="disasterLabel">—</span></div>
             <div class="chip p-3"><span class="text-slate-400">Бункер:</span><br /><span id="bunkerLabel">—</span></div>
             <div class="chip p-3"><span class="text-slate-400">Условия:</span><br /><span id="conditionLabel">—</span></div>
@@ -167,6 +185,8 @@
         players: [],
         me: null,
         ownerId: null,
+        personalCards: {},
+        gameStarted: false,
       };
 
       const authEl = document.getElementById("auth");
@@ -182,9 +202,12 @@
       const disasterLabel = document.getElementById("disasterLabel");
       const bunkerLabel = document.getElementById("bunkerLabel");
       const conditionLabel = document.getElementById("conditionLabel");
+      const worldStatePanel = document.getElementById("worldStatePanel");
       const playersList = document.getElementById("playersList");
       const infoLog = document.getElementById("infoLog");
       const startGameBtn = document.getElementById("startGameBtn");
+      const deleteRoomBtn = document.getElementById("deleteRoomBtn");
+      const adminControls = document.getElementById("adminControls");
       const revealCards = document.getElementById("revealCards");
 
       function prettifyCardName(cardKey) {
@@ -196,8 +219,12 @@
         Object.entries(CARD_LABELS).forEach(([key, label]) => {
           const button = document.createElement("button");
           button.dataset.card = key;
-          button.className = `reveal-btn card-tile text-left p-4 border border-slate-500/30 hover:border-cyan-300/70 transition ${CARD_STYLE[key] || "card-graphite"}`;
-          button.innerHTML = `<p class="text-xs uppercase opacity-80 mb-2">Карта</p><p class="text-lg font-semibold">${label}</p><p class="mt-4 text-sm opacity-85">Нажмите, чтобы раскрыть</p>`;
+          const value = state.personalCards[key];
+          const isActive = Boolean(state.players.find((p) => p.id === state.me)?.revealed?.includes(key));
+          button.className = `reveal-btn card-tile text-left p-4 border border-slate-500/30 hover:border-cyan-300/70 transition ${CARD_STYLE[key] || "card-graphite"} ${isActive ? "card-active" : ""}`;
+          button.innerHTML = `<p class="text-xs uppercase opacity-80 mb-2">Характеристика</p><p class="text-lg font-semibold">${label}</p><p class="mt-4 text-sm opacity-90">${value || "Откроется после старта игры"}</p><p class="mt-2 text-xs opacity-80">Нажмите, чтобы пометить открытой</p>`;
+          button.disabled = !state.gameStarted || !value;
+          if (button.disabled) button.classList.add("opacity-60", "cursor-not-allowed");
           button.addEventListener("click", () => {
             send("reveal_card", { room_id: state.roomId, card: key });
           });
@@ -296,9 +323,11 @@
             roomIdLabel.textContent = data.room_id;
             roundLabel.textContent = data.round;
             phaseLabel.textContent = data.phase;
+            state.gameStarted = data.state === "active";
             disasterLabel.textContent = data.disaster || "—";
             bunkerLabel.textContent = data.bunker || "—";
             conditionLabel.textContent = data.survival_condition || "—";
+            worldStatePanel.classList.toggle("hidden", !state.gameStarted);
 
             const me = state.players.find((p) => p.name === state.name || p.id === state.me);
             if (me) state.me = me.id;
@@ -308,18 +337,43 @@
             gameEl.classList.remove("hidden");
             renderPlayers();
             refreshOwnerControls();
+            renderRevealCards();
           }
 
           if (type === "game_started") {
-            logInfo("Игра началась! Карты розданы, условия выживания сгенерированы.");
+            state.gameStarted = true;
+            worldStatePanel.classList.remove("hidden");
+            logInfo("Игра началась! Всем розданы характеристики и раскрыты условия выживания.");
+          }
+
+          if (type === "personal_cards") {
+            state.personalCards = data.cards || {};
+            renderRevealCards();
           }
 
           if (type === "player_updated") {
-            logInfo(`Игрок раскрыл ${prettifyCardName(data.card)}: ${data.value}`);
+            if (data.player_id === state.me) {
+              logInfo(`Вы ${data.is_revealed ? "отметили открытой" : "скрыли"}: ${prettifyCardName(data.card)}`);
+            } else {
+              logInfo(`Игрок обновил статус карты: ${prettifyCardName(data.card)}`);
+            }
+            renderRevealCards();
           }
 
           if (type === "voting_results") {
             logInfo(`Исключён игрок: ${data.eliminated_player_name}`);
+          }
+
+          if (type === "room_deleted") {
+            logInfo("Комната удалена администратором");
+            gameEl.classList.add("hidden");
+            authEl.classList.remove("hidden");
+            state.roomId = null;
+            state.players = [];
+            state.personalCards = {};
+            state.gameStarted = false;
+            worldStatePanel.classList.add("hidden");
+            renderRevealCards();
           }
         };
       }
@@ -332,8 +386,12 @@
       function refreshOwnerControls() {
         const isOwner = state.me === state.ownerId;
         startGameBtn.disabled = !isOwner;
+        deleteRoomBtn.disabled = !isOwner;
         startGameBtn.classList.toggle("opacity-50", !isOwner);
+        deleteRoomBtn.classList.toggle("opacity-50", !isOwner);
         startGameBtn.title = isOwner ? "Запустить игру" : "Только создатель может запустить";
+        deleteRoomBtn.title = isOwner ? "Удалить комнату" : "Только создатель может удалить";
+        adminControls.classList.toggle("opacity-70", !isOwner);
       }
 
       function renderPlayers() {
@@ -354,13 +412,12 @@
                   <p class="font-medium">${player.name} ${isMe ? "(Вы)" : ""} ${player.id === state.ownerId ? "👑" : ""}</p>
                   <p class="text-xs text-slate-400">${player.is_alive ? "Жив" : "Исключён"} · раскрыто: ${revealedCards}</p>
                 </div>
-                ${!isMe && player.is_alive ? `<button class="vote-btn px-3 py-1 rounded-lg bg-rose-700 hover:bg-rose-600 transition" data-id="${player.id}">Голос</button>` : ""}
+                <div class="flex items-center gap-1">
+                  ${!isMe && player.is_alive ? `<button class="vote-btn icon-btn bg-rose-700 hover:bg-rose-600 transition" data-id="${player.id}" title="Голосовать">🗳️</button>` : ""}
+                  ${isOwner && !isMe ? `<button class="rename-btn icon-btn bg-amber-700 hover:bg-amber-600 transition" data-id="${player.id}" data-name="${player.name}" title="Переименовать">✏️</button>` : ""}
+                  ${isOwner && !isMe ? `<button class="kick-btn icon-btn bg-red-700 hover:bg-red-600 transition" data-id="${player.id}" title="Удалить игрока">✖</button>` : ""}
+                </div>
               </div>
-              ${isOwner && !isMe ? `
-                <div class="flex gap-2">
-                  <button class="kick-btn px-2 py-1 rounded-lg bg-red-700 hover:bg-red-600 transition text-xs" data-id="${player.id}">Выгнать</button>
-                  <button class="rename-btn px-2 py-1 rounded-lg bg-amber-700 hover:bg-amber-600 transition text-xs" data-id="${player.id}" data-name="${player.name}">Переименовать</button>
-                </div>` : ""}
             </div>
           `;
           playersList.appendChild(li);
@@ -434,6 +491,11 @@
       });
 
       startGameBtn.addEventListener("click", () => send("start_game", { room_id: state.roomId }));
+      deleteRoomBtn.addEventListener("click", () => {
+        if (!state.roomId) return;
+        if (!confirm("Удалить комнату для всех игроков?")) return;
+        send("delete_room", { room_id: state.roomId });
+      });
 
       renderRevealCards();
     </script>

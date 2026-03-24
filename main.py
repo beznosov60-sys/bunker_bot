@@ -98,6 +98,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                     game_state.round = room.round
                     game_state.phase = room.phase
                     db.commit()
+                await push_room_update(room.id)
 
             elif event == "reveal_card":
                 room_id = data.get("room_id")
@@ -169,6 +170,22 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                     db_player.name = new_name
                     db.commit()
                 await push_room_update(room_id)
+            elif event == "delete_room":
+                room_id = data.get("room_id")
+                room = GameManager.get_room(room_id)
+                if not room or not current_player_id:
+                    await websocket.send_json({"event": "error", "data": {"message": "Комната не найдена"}})
+                    continue
+                if room.owner_id != current_player_id:
+                    await websocket.send_json({"event": "error", "data": {"message": "Только создатель удаляет комнату"}})
+                    continue
+
+                await GameManager.broadcast(room, {"event": "room_deleted", "data": {"room_id": room_id}})
+                GameManager.delete_room(room_id)
+                db_room = db.get(Room, room_id)
+                if db_room:
+                    db.delete(db_room)
+                    db.commit()
             else:
                 logger.warning("Unknown websocket event: %s", event)
                 await websocket.send_json({"event": "error", "data": {"message": f"Неизвестное событие: {event}"}})
