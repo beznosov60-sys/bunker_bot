@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bunker Online</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .glass {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+      }
+      .fade-in {
+        animation: fadeIn 0.35s ease;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div class="max-w-5xl mx-auto px-4 py-8">
+      <h1 class="text-3xl font-bold mb-6">🎴 Bunker Online</h1>
+
+      <section id="lobby" class="glass rounded-2xl p-6 border border-slate-800 fade-in">
+        <h2 class="text-xl font-semibold mb-4">Лобби</h2>
+        <div class="grid md:grid-cols-2 gap-4">
+          <input id="nameInput" class="bg-slate-900 rounded-xl p-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ваше имя" />
+          <input id="roomInput" class="bg-slate-900 rounded-xl p-3 border border-slate-700 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ROOM ID" maxlength="6" />
+        </div>
+        <div class="flex gap-3 mt-4">
+          <button id="createRoomBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition">Создать комнату</button>
+          <button id="joinRoomBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition">Подключиться</button>
+        </div>
+      </section>
+
+      <section id="game" class="hidden mt-6 fade-in">
+        <div class="glass rounded-2xl p-4 border border-slate-800 flex flex-wrap gap-4 justify-between items-center">
+          <div><span class="text-slate-400">ROOM:</span> <span id="roomIdLabel" class="font-bold"></span></div>
+          <div><span class="text-slate-400">Раунд:</span> <span id="roundLabel">1</span></div>
+          <div><span class="text-slate-400">Фаза:</span> <span id="phaseLabel">lobby</span></div>
+          <button id="startGameBtn" class="px-3 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 transition">Старт игры</button>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-6 mt-6">
+          <div class="glass rounded-2xl p-4 border border-slate-800">
+            <h3 class="font-semibold mb-3">Игроки</h3>
+            <ul id="playersList" class="space-y-2"></ul>
+          </div>
+
+          <div class="glass rounded-2xl p-4 border border-slate-800">
+            <h3 class="font-semibold mb-3">Мои карты</h3>
+            <div class="grid gap-2">
+              <button data-card="profession" class="reveal-btn text-left p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-400 transition">Профессия</button>
+              <button data-card="health" class="reveal-btn text-left p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-400 transition">Здоровье</button>
+              <button data-card="phobia" class="reveal-btn text-left p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-400 transition">Фобия</button>
+            </div>
+            <p id="infoLog" class="text-sm text-slate-400 mt-4"></p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const state = {
+        ws: null,
+        roomId: null,
+        name: null,
+        players: [],
+        me: null,
+      };
+
+      const lobbyEl = document.getElementById("lobby");
+      const gameEl = document.getElementById("game");
+      const nameInput = document.getElementById("nameInput");
+      const roomInput = document.getElementById("roomInput");
+      const roomIdLabel = document.getElementById("roomIdLabel");
+      const roundLabel = document.getElementById("roundLabel");
+      const phaseLabel = document.getElementById("phaseLabel");
+      const playersList = document.getElementById("playersList");
+      const infoLog = document.getElementById("infoLog");
+
+      function connectWS() {
+        if (state.ws && state.ws.readyState === WebSocket.OPEN) return;
+        const proto = window.location.protocol === "https:" ? "wss" : "ws";
+        state.ws = new WebSocket(`${proto}://${window.location.host}/ws`);
+
+        state.ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+          const { event: type, data } = msg;
+
+          if (type === "error") {
+            infoLog.textContent = data.message;
+            return;
+          }
+
+          if (type === "room_update") {
+            state.roomId = data.room_id;
+            state.players = data.players;
+            roomIdLabel.textContent = data.room_id;
+            roundLabel.textContent = data.round;
+            phaseLabel.textContent = data.phase;
+
+            if (!state.me) {
+              const me = state.players.find((p) => p.name === state.name);
+              if (me) state.me = me.id;
+            }
+
+            lobbyEl.classList.add("hidden");
+            gameEl.classList.remove("hidden");
+            renderPlayers();
+          }
+
+          if (type === "game_started") {
+            infoLog.textContent = "Игра началась. Раскрывайте карты!";
+          }
+
+          if (type === "player_updated") {
+            infoLog.textContent = `Игрок раскрыл ${data.card}: ${data.value}`;
+          }
+
+          if (type === "voting_results") {
+            infoLog.textContent = `Исключён игрок: ${data.eliminated_player_name}`;
+          }
+        };
+      }
+
+      function send(event, data = {}) {
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+        state.ws.send(JSON.stringify({ event, data }));
+      }
+
+      function renderPlayers() {
+        playersList.innerHTML = "";
+        state.players.forEach((player) => {
+          const li = document.createElement("li");
+          li.className = "p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 transition";
+          li.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <p class="font-medium">${player.name} ${player.id === state.me ? "(Вы)" : ""}</p>
+                <p class="text-xs text-slate-400">${player.is_alive ? "Жив" : "Исключён"} · раскрыто: ${player.revealed.join(", ") || "-"}</p>
+              </div>
+              ${player.id !== state.me && player.is_alive ? `<button class="vote-btn px-3 py-1 rounded-lg bg-rose-700 hover:bg-rose-600 transition" data-id="${player.id}">Голос</button>` : ""}
+            </div>
+          `;
+          playersList.appendChild(li);
+        });
+
+        document.querySelectorAll(".vote-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            send("vote", { room_id: state.roomId, target_id: btn.dataset.id });
+          });
+        });
+      }
+
+      document.getElementById("createRoomBtn").addEventListener("click", () => {
+        state.name = nameInput.value.trim() || "Игрок";
+        connectWS();
+        const waitOpen = setInterval(() => {
+          if (state.ws.readyState === WebSocket.OPEN) {
+            clearInterval(waitOpen);
+            send("create_room", { name: state.name });
+          }
+        }, 50);
+      });
+
+      document.getElementById("joinRoomBtn").addEventListener("click", () => {
+        state.name = nameInput.value.trim() || "Игрок";
+        const roomId = roomInput.value.trim().toUpperCase();
+        connectWS();
+        const waitOpen = setInterval(() => {
+          if (state.ws.readyState === WebSocket.OPEN) {
+            clearInterval(waitOpen);
+            send("join_room", { name: state.name, room_id: roomId });
+          }
+        }, 50);
+      });
+
+      document.getElementById("startGameBtn").addEventListener("click", () => {
+        send("start_game", { room_id: state.roomId });
+      });
+
+      document.querySelectorAll(".reveal-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          send("reveal_card", { room_id: state.roomId, card: btn.dataset.card });
+        });
+      });
+    </script>
+  </body>
+</html>
