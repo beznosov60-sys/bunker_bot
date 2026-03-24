@@ -25,16 +25,26 @@
       <h1 class="text-3xl font-bold mb-6">🎴 Bunker Online</h1>
 
       <section id="auth" class="glass rounded-2xl p-6 border border-slate-800 fade-in">
-        <h2 class="text-xl font-semibold mb-4">Вход в игру</h2>
+        <h2 class="text-xl font-semibold mb-4">Главный экран</h2>
         <div class="grid md:grid-cols-3 gap-3">
-          <input id="nameInput" class="md:col-span-2 bg-slate-900 rounded-xl p-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Введите имя" />
+          <input id="nameInput" class="md:col-span-3 bg-slate-900 rounded-xl p-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Введите имя" />
           <button id="createRoomBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition">Создать лобби</button>
-        </div>
-        <div class="grid md:grid-cols-3 gap-3 mt-3">
-          <input id="roomInput" class="md:col-span-2 bg-slate-900 rounded-xl p-3 border border-slate-700 uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Введите ID комнаты" maxlength="6" />
           <button id="joinRoomBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition">Подключиться</button>
         </div>
         <p id="authInfo" class="text-sm text-slate-400 mt-3"></p>
+      </section>
+
+      <section id="joinModal" class="hidden fixed inset-0 bg-slate-950/85 z-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-md glass rounded-2xl p-6 border border-slate-800">
+          <h3 class="text-lg font-semibold mb-3">Подключение к комнате</h3>
+          <p class="text-sm text-slate-400 mb-3">Введите ID комнаты, которую дал создатель лобби</p>
+          <input id="roomInput" class="w-full bg-slate-900 rounded-xl p-3 border border-slate-700 uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="ID комнаты" maxlength="6" />
+          <div class="mt-4 flex gap-2 justify-end">
+            <button id="closeJoinModalBtn" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 transition">Отмена</button>
+            <button id="confirmJoinBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition">Войти</button>
+          </div>
+          <p id="joinInfo" class="text-sm text-slate-400 mt-3"></p>
+        </div>
       </section>
 
       <section id="game" class="hidden mt-6 fade-in">
@@ -87,6 +97,8 @@
       const gameEl = document.getElementById("game");
       const nameInput = document.getElementById("nameInput");
       const roomInput = document.getElementById("roomInput");
+      const joinModal = document.getElementById("joinModal");
+      const joinInfo = document.getElementById("joinInfo");
       const roomIdLabel = document.getElementById("roomIdLabel");
       const roundLabel = document.getElementById("roundLabel");
       const phaseLabel = document.getElementById("phaseLabel");
@@ -100,11 +112,34 @@
       function logInfo(message) {
         console.log(`[INFO] ${message}`);
         infoLog.textContent = message;
+        if (!authEl.classList.contains("hidden")) {
+          authInfo.textContent = message;
+        }
+        if (!joinModal.classList.contains("hidden")) {
+          joinInfo.textContent = message;
+        }
       }
 
       function logError(message, error = null) {
         console.error(`[ERROR] ${message}`, error || "");
         infoLog.textContent = `Ошибка: ${message}`;
+        if (!authEl.classList.contains("hidden")) {
+          authInfo.textContent = `Ошибка: ${message}`;
+        }
+        if (!joinModal.classList.contains("hidden")) {
+          joinInfo.textContent = `Ошибка: ${message}`;
+        }
+      }
+
+      function openJoinModal() {
+        joinInfo.textContent = "";
+        roomInput.value = "";
+        joinModal.classList.remove("hidden");
+        roomInput.focus();
+      }
+
+      function closeJoinModal() {
+        joinModal.classList.add("hidden");
       }
 
       function validateName() {
@@ -203,6 +238,7 @@
             if (me) state.me = me.id;
 
             authEl.classList.add("hidden");
+            closeJoinModal();
             gameEl.classList.remove("hidden");
             renderPlayers();
             refreshOwnerControls();
@@ -299,7 +335,7 @@
         }
       });
 
-      document.getElementById("joinRoomBtn").addEventListener("click", async () => {
+      async function joinRoomFromModal() {
         const name = validateName();
         if (!name) return;
 
@@ -316,6 +352,20 @@
           send("join_room", { name: state.name, room_id: roomId });
         } catch (error) {
           logError("Не удалось подключиться к лобби", error);
+        }
+      }
+
+      document.getElementById("joinRoomBtn").addEventListener("click", () => {
+        const name = validateName();
+        if (!name) return;
+        openJoinModal();
+      });
+
+      document.getElementById("closeJoinModalBtn").addEventListener("click", closeJoinModal);
+      document.getElementById("confirmJoinBtn").addEventListener("click", joinRoomFromModal);
+      roomInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          joinRoomFromModal();
         }
       });
 
