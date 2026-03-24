@@ -1,39 +1,78 @@
+import logging
 import random
 import string
 from collections import Counter
 from dataclasses import dataclass, field
-import logging
 from typing import Any, Optional
 
 from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 
+AGE_AND_GENDER = [
+    "19 лет, женщина",
+    "24 года, мужчина",
+    "31 год, женщина",
+    "38 лет, мужчина",
+    "45 лет, женщина",
+    "52 года, мужчина",
+]
 PROFESSIONS = [
-    "Инженер",
-    "Врач",
-    "Учитель",
+    "Инженер-строитель",
+    "Врач скорой помощи",
+    "Учитель математики",
     "Программист",
-    "Повар",
-    "Пилот",
+    "Повар-кондитер",
+    "Пилот гражданской авиации",
     "Биолог",
     "Психолог",
 ]
 HEALTH = [
     "Абсолютно здоров",
     "Астма",
-    "Аллергия",
+    "Аллергия на пыль",
     "Проблемы со зрением",
     "Сильный иммунитет",
     "Хроническая мигрень",
+]
+BODY_TYPE = [
+    "Атлетическое",
+    "Худощавое",
+    "Крепкое",
+    "Среднее",
+    "Полное",
+]
+HOBBIES = [
+    "Рыбалка",
+    "Походы",
+    "Шахматы",
+    "Музыка",
+    "Кулинария",
+    "Робототехника",
+]
+BAGGAGE = [
+    "Аптечка и антибиотики",
+    "Набор инструментов",
+    "Семена и удобрения",
+    "Рация и аккумуляторы",
+    "Ноутбук с офлайн-библиотекой",
+    "Фильтры для воды",
 ]
 PHOBIAS = [
     "Клаустрофобия",
     "Арахнофобия",
     "Аквафобия",
     "Социофобия",
-    "Нет фобий",
+    "Нет выраженных фобий",
     "Боязнь темноты",
+]
+FEATURES = [
+    "Быстро учится новому",
+    "Отлично ведёт переговоры",
+    "Плохо переносит стресс",
+    "Знает основы первой помощи",
+    "Прирождённый лидер",
+    "Умеет чинить электронику",
 ]
 DISASTERS = [
     "Глобальная пандемия",
@@ -128,9 +167,14 @@ class GameManager:
     @staticmethod
     def generate_cards() -> dict[str, str]:
         return {
+            "age_gender": random.choice(AGE_AND_GENDER),
             "profession": random.choice(PROFESSIONS),
             "health": random.choice(HEALTH),
+            "body_type": random.choice(BODY_TYPE),
+            "hobby": random.choice(HOBBIES),
+            "baggage": random.choice(BAGGAGE),
             "phobia": random.choice(PHOBIAS),
+            "feature": random.choice(FEATURES),
         }
 
     @staticmethod
