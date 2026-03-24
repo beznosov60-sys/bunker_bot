@@ -7,82 +7,137 @@
     <link rel="icon" href="data:," />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      .glass {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        background: radial-gradient(circle at top, #111827 0%, #020617 55%);
       }
       .fade-in {
         animation: fadeIn 0.35s ease;
       }
+      .soft-card {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 1.25rem;
+        background: linear-gradient(145deg, rgba(17, 24, 39, 0.95), rgba(15, 23, 42, 0.88));
+        box-shadow: 0 10px 26px rgba(2, 6, 23, 0.45);
+      }
+      .chip {
+        border-radius: 9999px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(15, 23, 42, 0.72);
+      }
+      .card-tile {
+        border-radius: 1.5rem;
+        min-height: 180px;
+      }
+      .card-aqua {
+        background: linear-gradient(145deg, #0891b2, #67e8f9);
+        color: #062027;
+      }
+      .card-violet {
+        background: linear-gradient(145deg, #4f46e5, #a5b4fc);
+        color: #eef2ff;
+      }
+      .card-graphite {
+        background: linear-gradient(145deg, #111827, #1f2937);
+      }
       @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(6px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
     </style>
   </head>
-  <body class="bg-slate-950 text-slate-100 min-h-screen">
-    <div class="max-w-5xl mx-auto px-4 py-8">
-      <h1 class="text-3xl font-bold mb-6">🎴 Bunker Online</h1>
+  <body class="text-slate-100 min-h-screen">
+    <div class="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+      <div class="flex items-center justify-between gap-3 mb-4">
+        <h1 class="text-2xl sm:text-4xl font-bold">🎴 Bunker Online</h1>
+        <span class="chip px-4 py-2 text-xs sm:text-sm text-slate-300">Адаптировано для телефона</span>
+      </div>
 
-      <section id="auth" class="glass rounded-2xl p-6 border border-slate-800 fade-in">
-        <h2 class="text-xl font-semibold mb-4">Главный экран</h2>
-        <div class="grid md:grid-cols-3 gap-3">
-          <input id="nameInput" class="md:col-span-3 bg-slate-900 rounded-xl p-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Введите имя" />
-          <button id="createRoomBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition">Создать лобби</button>
-          <button id="joinRoomBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition">Подключиться</button>
+      <section id="auth" class="soft-card p-4 sm:p-6 fade-in">
+        <h2 class="text-lg sm:text-2xl font-semibold mb-4">Главный экран</h2>
+        <div class="grid sm:grid-cols-3 gap-3">
+          <input id="nameInput" class="sm:col-span-3 bg-slate-900/80 rounded-2xl p-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Введите имя" />
+          <button id="createRoomBtn" class="px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 transition">Создать лобби</button>
+          <button id="joinRoomBtn" class="px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 transition">Подключиться</button>
         </div>
-        <p id="authInfo" class="text-sm text-slate-400 mt-3"></p>
+        <p id="authInfo" class="text-sm text-slate-300 mt-3"></p>
       </section>
 
-      <section id="joinModal" class="hidden fixed inset-0 bg-slate-950/85 z-50 flex items-center justify-center p-4">
-        <div class="w-full max-w-md glass rounded-2xl p-6 border border-slate-800">
+      <section id="joinModal" class="hidden fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-md soft-card p-6">
           <h3 class="text-lg font-semibold mb-3">Подключение к комнате</h3>
-          <p class="text-sm text-slate-400 mb-3">Введите ID комнаты, которую дал создатель лобби</p>
+          <p class="text-sm text-slate-400 mb-3">Введите ID комнаты от создателя лобби</p>
           <input id="roomInput" class="w-full bg-slate-900 rounded-xl p-3 border border-slate-700 uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="ID комнаты" maxlength="6" />
           <div class="mt-4 flex gap-2 justify-end">
             <button id="closeJoinModalBtn" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 transition">Отмена</button>
             <button id="confirmJoinBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition">Войти</button>
           </div>
-          <p id="joinInfo" class="text-sm text-slate-400 mt-3"></p>
+          <p id="joinInfo" class="text-sm text-slate-300 mt-3"></p>
         </div>
       </section>
 
-      <section id="game" class="hidden mt-6 fade-in">
-        <div class="glass rounded-2xl p-4 border border-slate-800 space-y-3">
-          <div class="flex flex-wrap gap-4 justify-between items-center">
-            <div><span class="text-slate-400">ROOM:</span> <span id="roomIdLabel" class="font-bold"></span></div>
-            <div><span class="text-slate-400">Раунд:</span> <span id="roundLabel">1</span></div>
-            <div><span class="text-slate-400">Фаза:</span> <span id="phaseLabel">lobby</span></div>
-            <button id="copyRoomBtn" class="px-3 py-1 rounded-lg bg-sky-700 hover:bg-sky-600 transition">Скопировать ID</button>
-            <button id="startGameBtn" class="px-3 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 transition">Старт игры</button>
+      <section id="game" class="hidden mt-4 sm:mt-6 fade-in space-y-4 sm:space-y-6">
+        <div class="soft-card p-4 sm:p-5">
+          <div class="flex flex-wrap gap-2 sm:gap-3 items-center justify-between text-sm">
+            <span class="chip px-3 py-1.5">Комната: <b id="roomIdLabel"></b></span>
+            <span class="chip px-3 py-1.5">Раунд: <b id="roundLabel">1</b></span>
+            <span class="chip px-3 py-1.5">Фаза: <b id="phaseLabel">lobby</b></span>
+            <button id="copyRoomBtn" class="px-3 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 transition">Скопировать ID</button>
+            <button id="startGameBtn" class="px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 transition">Старт игры</button>
           </div>
-          <div class="text-sm text-slate-300 space-y-1">
-            <p><span class="text-slate-400">Катастрофа:</span> <span id="disasterLabel">—</span></p>
-            <p><span class="text-slate-400">Бункер:</span> <span id="bunkerLabel">—</span></p>
-            <p><span class="text-slate-400">Условия:</span> <span id="conditionLabel">—</span></p>
+          <div class="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
+            <div class="chip p-3"><span class="text-slate-400">Катастрофа:</span><br /><span id="disasterLabel">—</span></div>
+            <div class="chip p-3"><span class="text-slate-400">Бункер:</span><br /><span id="bunkerLabel">—</span></div>
+            <div class="chip p-3"><span class="text-slate-400">Условия:</span><br /><span id="conditionLabel">—</span></div>
           </div>
         </div>
 
-        <div class="grid lg:grid-cols-2 gap-6 mt-6">
-          <div class="glass rounded-2xl p-4 border border-slate-800">
-            <h3 class="font-semibold mb-3">Игроки</h3>
+        <div class="grid lg:grid-cols-2 gap-4 sm:gap-6">
+          <div class="soft-card p-4">
+            <h3 class="font-semibold mb-3 text-xl">Игроки</h3>
             <ul id="playersList" class="space-y-2"></ul>
           </div>
 
-          <div class="glass rounded-2xl p-4 border border-slate-800">
-            <h3 class="font-semibold mb-3">Мои карты героя</h3>
-            <div class="grid gap-2">
-              <button data-card="profession" class="reveal-btn text-left p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-400 transition">Профессия</button>
-              <button data-card="health" class="reveal-btn text-left p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-400 transition">Здоровье</button>
-              <button data-card="phobia" class="reveal-btn text-left p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-400 transition">Фобия</button>
-            </div>
-            <p id="infoLog" class="text-sm text-slate-300 mt-4"></p>
+          <div class="soft-card p-4">
+            <h3 class="font-semibold mb-3 text-xl">Карточка персонажа</h3>
+            <div id="revealCards" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+            <p id="infoLog" class="text-sm text-slate-200 mt-4"></p>
           </div>
         </div>
       </section>
     </div>
 
     <script>
+      const CARD_LABELS = {
+        age_gender: "Возраст и пол",
+        profession: "Профессия",
+        health: "Здоровье",
+        body_type: "Телосложение",
+        hobby: "Хобби",
+        baggage: "Багаж",
+        phobia: "Фобии",
+        feature: "Особенность",
+      };
+
+      const CARD_STYLE = {
+        age_gender: "card-violet",
+        profession: "card-graphite",
+        health: "card-aqua",
+        body_type: "card-graphite",
+        hobby: "card-violet",
+        baggage: "card-aqua",
+        phobia: "card-graphite",
+        feature: "card-violet",
+      };
+
       const state = {
         ws: null,
         roomId: null,
@@ -108,27 +163,38 @@
       const playersList = document.getElementById("playersList");
       const infoLog = document.getElementById("infoLog");
       const startGameBtn = document.getElementById("startGameBtn");
+      const revealCards = document.getElementById("revealCards");
+
+      function prettifyCardName(cardKey) {
+        return CARD_LABELS[cardKey] || cardKey;
+      }
+
+      function renderRevealCards() {
+        revealCards.innerHTML = "";
+        Object.entries(CARD_LABELS).forEach(([key, label]) => {
+          const button = document.createElement("button");
+          button.dataset.card = key;
+          button.className = `reveal-btn card-tile text-left p-4 border border-slate-500/30 hover:border-cyan-300/70 transition ${CARD_STYLE[key] || "card-graphite"}`;
+          button.innerHTML = `<p class="text-xs uppercase opacity-80 mb-2">Карта</p><p class="text-lg font-semibold">${label}</p><p class="mt-4 text-sm opacity-85">Нажмите, чтобы раскрыть</p>`;
+          button.addEventListener("click", () => {
+            send("reveal_card", { room_id: state.roomId, card: key });
+          });
+          revealCards.appendChild(button);
+        });
+      }
 
       function logInfo(message) {
         console.log(`[INFO] ${message}`);
         infoLog.textContent = message;
-        if (!authEl.classList.contains("hidden")) {
-          authInfo.textContent = message;
-        }
-        if (!joinModal.classList.contains("hidden")) {
-          joinInfo.textContent = message;
-        }
+        if (!authEl.classList.contains("hidden")) authInfo.textContent = message;
+        if (!joinModal.classList.contains("hidden")) joinInfo.textContent = message;
       }
 
       function logError(message, error = null) {
         console.error(`[ERROR] ${message}`, error || "");
         infoLog.textContent = `Ошибка: ${message}`;
-        if (!authEl.classList.contains("hidden")) {
-          authInfo.textContent = `Ошибка: ${message}`;
-        }
-        if (!joinModal.classList.contains("hidden")) {
-          joinInfo.textContent = `Ошибка: ${message}`;
-        }
+        if (!authEl.classList.contains("hidden")) authInfo.textContent = `Ошибка: ${message}`;
+        if (!joinModal.classList.contains("hidden")) joinInfo.textContent = `Ошибка: ${message}`;
       }
 
       function openJoinModal() {
@@ -153,14 +219,8 @@
 
       function waitForSocketOpen() {
         return new Promise((resolve, reject) => {
-          if (!state.ws) {
-            reject(new Error("WebSocket не создан"));
-            return;
-          }
-          if (state.ws.readyState === WebSocket.OPEN) {
-            resolve();
-            return;
-          }
+          if (!state.ws) return reject(new Error("WebSocket не создан"));
+          if (state.ws.readyState === WebSocket.OPEN) return resolve();
 
           const timeout = setTimeout(() => reject(new Error("Таймаут подключения WebSocket")), 5000);
           state.ws.addEventListener("open", () => {
@@ -175,9 +235,8 @@
       }
 
       function connectWS() {
-        if (state.ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(state.ws.readyState)) {
-          return;
-        }
+        if (state.ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(state.ws.readyState)) return;
+
         const proto = window.location.protocol === "https:" ? "wss" : "ws";
         state.ws = new WebSocket(`${proto}://${window.location.host}/ws`);
 
@@ -186,20 +245,11 @@
           authInfo.textContent = "Соединение установлено";
         };
 
-        state.ws.onclose = () => {
-          console.warn("[WS] closed");
-        };
-
-        state.ws.onerror = (event) => {
-          logError("Проблема с соединением", event);
-        };
+        state.ws.onclose = () => console.warn("[WS] closed");
+        state.ws.onerror = (event) => logError("Проблема с соединением", event);
 
         state.ws.onmessage = (event) => {
-          if (typeof event.data !== "string") {
-            logError("Получено неподдерживаемое сообщение WebSocket");
-            return;
-          }
-
+          if (typeof event.data !== "string") return logError("Получено неподдерживаемое сообщение WebSocket");
           const payload = event.data.trim();
           if (!payload) return;
 
@@ -214,14 +264,8 @@
           const { event: type, data } = msg;
           console.log("[WS] event", type, data);
 
-          if (type === "error") {
-            logError(data?.message || "Неизвестная ошибка");
-            return;
-          }
-
-          if (type === "room_created") {
-            authInfo.textContent = `Комната создана. ID: ${data.room_id}`;
-          }
+          if (type === "error") return logError(data?.message || "Неизвестная ошибка");
+          if (type === "room_created") authInfo.textContent = `Комната создана. ID: ${data.room_id}`;
 
           if (type === "room_update") {
             state.roomId = data.room_id;
@@ -249,7 +293,7 @@
           }
 
           if (type === "player_updated") {
-            logInfo(`Игрок раскрыл ${data.card}: ${data.value}`);
+            logInfo(`Игрок раскрыл ${prettifyCardName(data.card)}: ${data.value}`);
           }
 
           if (type === "voting_results") {
@@ -259,10 +303,7 @@
       }
 
       function send(event, data = {}) {
-        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-          logError(`Кнопка не сработала: нет соединения для события ${event}`);
-          return;
-        }
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return logError(`Нет соединения для события ${event}`);
         state.ws.send(JSON.stringify({ event, data }));
       }
 
@@ -278,17 +319,18 @@
 
         state.players.forEach((player) => {
           const li = document.createElement("li");
-          li.className = "p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 transition";
+          li.className = "p-3 rounded-2xl bg-slate-900/75 border border-slate-700 hover:border-slate-500 transition";
 
           const isOwner = state.ownerId === state.me;
           const isMe = player.id === state.me;
+          const revealedCards = (player.revealed || []).map(prettifyCardName).join(", ") || "-";
 
           li.innerHTML = `
             <div class="space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <div>
                   <p class="font-medium">${player.name} ${isMe ? "(Вы)" : ""} ${player.id === state.ownerId ? "👑" : ""}</p>
-                  <p class="text-xs text-slate-400">${player.is_alive ? "Жив" : "Исключён"} · раскрыто: ${player.revealed.join(", ") || "-"}</p>
+                  <p class="text-xs text-slate-400">${player.is_alive ? "Жив" : "Исключён"} · раскрыто: ${revealedCards}</p>
                 </div>
                 ${!isMe && player.is_alive ? `<button class="vote-btn px-3 py-1 rounded-lg bg-rose-700 hover:bg-rose-600 transition" data-id="${player.id}">Голос</button>` : ""}
               </div>
@@ -305,17 +347,13 @@
         document.querySelectorAll(".vote-btn").forEach((btn) => {
           btn.addEventListener("click", () => send("vote", { room_id: state.roomId, target_id: btn.dataset.id }));
         });
-
         document.querySelectorAll(".kick-btn").forEach((btn) => {
           btn.addEventListener("click", () => send("kick_player", { room_id: state.roomId, target_id: btn.dataset.id }));
         });
-
         document.querySelectorAll(".rename-btn").forEach((btn) => {
           btn.addEventListener("click", () => {
             const newName = prompt("Новое имя игрока", btn.dataset.name || "");
-            if (!newName) {
-              return;
-            }
+            if (!newName) return;
             send("rename_player", { room_id: state.roomId, target_id: btn.dataset.id, new_name: newName.trim() });
           });
         });
@@ -324,7 +362,6 @@
       document.getElementById("createRoomBtn").addEventListener("click", async () => {
         const name = validateName();
         if (!name) return;
-
         try {
           state.name = name;
           connectWS();
@@ -340,10 +377,7 @@
         if (!name) return;
 
         const roomId = roomInput.value.trim().toUpperCase();
-        if (!roomId) {
-          logError("Введите ID комнаты для подключения");
-          return;
-        }
+        if (!roomId) return logError("Введите ID комнаты для подключения");
 
         try {
           state.name = name;
@@ -364,16 +398,11 @@
       document.getElementById("closeJoinModalBtn").addEventListener("click", closeJoinModal);
       document.getElementById("confirmJoinBtn").addEventListener("click", joinRoomFromModal);
       roomInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          joinRoomFromModal();
-        }
+        if (event.key === "Enter") joinRoomFromModal();
       });
 
       document.getElementById("copyRoomBtn").addEventListener("click", async () => {
-        if (!state.roomId) {
-          logError("ID комнаты пока не создан");
-          return;
-        }
+        if (!state.roomId) return logError("ID комнаты пока не создан");
         try {
           await navigator.clipboard.writeText(state.roomId);
           logInfo(`ID ${state.roomId} скопирован в буфер обмена`);
@@ -382,15 +411,9 @@
         }
       });
 
-      startGameBtn.addEventListener("click", () => {
-        send("start_game", { room_id: state.roomId });
-      });
+      startGameBtn.addEventListener("click", () => send("start_game", { room_id: state.roomId }));
 
-      document.querySelectorAll(".reveal-btn").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          send("reveal_card", { room_id: state.roomId, card: btn.dataset.card });
-        });
-      });
+      renderRevealCards();
     </script>
   </body>
 </html>
