@@ -1,7 +1,10 @@
+from pathlib import Path
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = "sqlite:///./bunker.db"
+Path("bunker.db").touch(exist_ok=True)
 
 engine = create_engine(
     DATABASE_URL,

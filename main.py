@@ -1,4 +1,5 @@
 import uuid
+import logging
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
@@ -10,7 +11,13 @@ from game_manager import GameManager
 from models import GameStateDB, PlayerDB, Room
 
 app = FastAPI(title="Bunker Game")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 Base.metadata.create_all(bind=engine)
+logger.info("SQLite initialized and tables ensured")
 
 
 @app.get("/")
@@ -21,6 +28,7 @@ async def index() -> FileResponse:
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     await websocket.accept()
+    logger.info("WebSocket connected: %s", websocket.client)
 
     current_room_id: str | None = None
     current_player_id: str | None = None
@@ -49,11 +57,15 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
 
                 current_room_id = room.id
                 current_player_id = player_id
+                await websocket.send_json({"event": "room_created", "data": {"room_id": room.id}})
                 await push_room_update(room.id)
 
             elif event == "join_room":
                 room_id = (data.get("room_id") or "").upper()
                 name = data.get("name", "Игрок").strip() or "Игрок"
+                if not room_id:
+                    await websocket.send_json({"event": "error", "data": {"message": "Введите ID комнаты"}})
+                    continue
                 room = GameManager.get_room(room_id)
                 if not room:
                     await websocket.send_json({"event": "error", "data": {"message": "Комната не найдена"}})
@@ -73,6 +85,10 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 room_id = data.get("room_id")
                 room = GameManager.get_room(room_id)
                 if not room:
+                    await websocket.send_json({"event": "error", "data": {"message": "Комната не найдена"}})
+                    continue
+                if room.owner_id != current_player_id:
+                    await websocket.send_json({"event": "error", "data": {"message": "Только создатель запускает игру"}})
                     continue
 
                 await GameManager.start_game(room)
@@ -87,8 +103,11 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 card_key = data.get("card")
                 room = GameManager.get_room(room_id)
                 if not room or not current_player_id:
+                    await websocket.send_json({"event": "error", "data": {"message": "Не удалось раскрыть карту"}})
                     continue
-                await GameManager.reveal_card(room, current_player_id, card_key)
+                result = await GameManager.reveal_card(room, current_player_id, card_key)
+                if not result:
+                    await websocket.send_json({"event": "error", "data": {"message": "Нельзя раскрыть эту карту"}})
                 await push_room_update(room_id)
 
             elif event == "vote":
@@ -96,9 +115,12 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 target_id = data.get("target_id")
                 room = GameManager.get_room(room_id)
                 if not room or not current_player_id:
+                    await websocket.send_json({"event": "error", "data": {"message": "Не удалось проголосовать"}})
                     continue
 
-                await GameManager.vote(room, current_player_id, target_id)
+                vote_result = await GameManager.vote(room, current_player_id, target_id)
+                if target_id and vote_result is None and target_id not in room.players:
+                    await websocket.send_json({"event": "error", "data": {"message": "Цель голосования не найдена"}})
 
                 game_state = db.get(GameStateDB, room_id)
                 if game_state:
@@ -110,8 +132,48 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                     if db_player:
                         db_player.is_alive = player.is_alive
                 db.commit()
+            elif event == "kick_player":
+                room_id = data.get("room_id")
+                target_id = data.get("target_id")
+                room = GameManager.get_room(room_id)
+                if not room or not current_player_id:
+                    await websocket.send_json({"event": "error", "data": {"message": "Комната не найдена"}})
+                    continue
+                if not GameManager.kick_player(room, current_player_id, target_id):
+                    await websocket.send_json({"event": "error", "data": {"message": "Нельзя выгнать игрока"}})
+                    continue
+
+                db_player = db.get(PlayerDB, target_id)
+                if db_player:
+                    db.delete(db_player)
+                    db.commit()
+                await push_room_update(room_id)
+            elif event == "rename_player":
+                room_id = data.get("room_id")
+                target_id = data.get("target_id")
+                new_name = (data.get("new_name") or "").strip()
+                room = GameManager.get_room(room_id)
+                if not room or not current_player_id:
+                    await websocket.send_json({"event": "error", "data": {"message": "Комната не найдена"}})
+                    continue
+                if not new_name:
+                    await websocket.send_json({"event": "error", "data": {"message": "Введите новое имя"}})
+                    continue
+                if not GameManager.rename_player(room, current_player_id, target_id, new_name):
+                    await websocket.send_json({"event": "error", "data": {"message": "Нельзя переименовать игрока"}})
+                    continue
+
+                db_player = db.get(PlayerDB, target_id)
+                if db_player:
+                    db_player.name = new_name
+                    db.commit()
+                await push_room_update(room_id)
+            else:
+                logger.warning("Unknown websocket event: %s", event)
+                await websocket.send_json({"event": "error", "data": {"message": f"Неизвестное событие: {event}"}})
 
     except WebSocketDisconnect:
+        logger.info("WebSocket disconnected: %s", websocket.client)
         if current_room_id and current_player_id:
             room = GameManager.get_room(current_room_id)
             if room:
@@ -121,3 +183,5 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                     db.delete(db_player)
                     db.commit()
                 await push_room_update(current_room_id)
+    except Exception:
+        logger.exception("Unhandled websocket error")

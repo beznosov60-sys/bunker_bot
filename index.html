@@ -24,24 +24,33 @@
     <div class="max-w-5xl mx-auto px-4 py-8">
       <h1 class="text-3xl font-bold mb-6">🎴 Bunker Online</h1>
 
-      <section id="lobby" class="glass rounded-2xl p-6 border border-slate-800 fade-in">
-        <h2 class="text-xl font-semibold mb-4">Лобби</h2>
-        <div class="grid md:grid-cols-2 gap-4">
-          <input id="nameInput" class="bg-slate-900 rounded-xl p-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ваше имя" />
-          <input id="roomInput" class="bg-slate-900 rounded-xl p-3 border border-slate-700 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ROOM ID" maxlength="6" />
+      <section id="auth" class="glass rounded-2xl p-6 border border-slate-800 fade-in">
+        <h2 class="text-xl font-semibold mb-4">Вход в игру</h2>
+        <div class="grid md:grid-cols-3 gap-3">
+          <input id="nameInput" class="md:col-span-2 bg-slate-900 rounded-xl p-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Введите имя" />
+          <button id="createRoomBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition">Создать лобби</button>
         </div>
-        <div class="flex gap-3 mt-4">
-          <button id="createRoomBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition">Создать комнату</button>
+        <div class="grid md:grid-cols-3 gap-3 mt-3">
+          <input id="roomInput" class="md:col-span-2 bg-slate-900 rounded-xl p-3 border border-slate-700 uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Введите ID комнаты" maxlength="6" />
           <button id="joinRoomBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition">Подключиться</button>
         </div>
+        <p id="authInfo" class="text-sm text-slate-400 mt-3"></p>
       </section>
 
       <section id="game" class="hidden mt-6 fade-in">
-        <div class="glass rounded-2xl p-4 border border-slate-800 flex flex-wrap gap-4 justify-between items-center">
-          <div><span class="text-slate-400">ROOM:</span> <span id="roomIdLabel" class="font-bold"></span></div>
-          <div><span class="text-slate-400">Раунд:</span> <span id="roundLabel">1</span></div>
-          <div><span class="text-slate-400">Фаза:</span> <span id="phaseLabel">lobby</span></div>
-          <button id="startGameBtn" class="px-3 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 transition">Старт игры</button>
+        <div class="glass rounded-2xl p-4 border border-slate-800 space-y-3">
+          <div class="flex flex-wrap gap-4 justify-between items-center">
+            <div><span class="text-slate-400">ROOM:</span> <span id="roomIdLabel" class="font-bold"></span></div>
+            <div><span class="text-slate-400">Раунд:</span> <span id="roundLabel">1</span></div>
+            <div><span class="text-slate-400">Фаза:</span> <span id="phaseLabel">lobby</span></div>
+            <button id="copyRoomBtn" class="px-3 py-1 rounded-lg bg-sky-700 hover:bg-sky-600 transition">Скопировать ID</button>
+            <button id="startGameBtn" class="px-3 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 transition">Старт игры</button>
+          </div>
+          <div class="text-sm text-slate-300 space-y-1">
+            <p><span class="text-slate-400">Катастрофа:</span> <span id="disasterLabel">—</span></p>
+            <p><span class="text-slate-400">Бункер:</span> <span id="bunkerLabel">—</span></p>
+            <p><span class="text-slate-400">Условия:</span> <span id="conditionLabel">—</span></p>
+          </div>
         </div>
 
         <div class="grid lg:grid-cols-2 gap-6 mt-6">
@@ -51,13 +60,13 @@
           </div>
 
           <div class="glass rounded-2xl p-4 border border-slate-800">
-            <h3 class="font-semibold mb-3">Мои карты</h3>
+            <h3 class="font-semibold mb-3">Мои карты героя</h3>
             <div class="grid gap-2">
               <button data-card="profession" class="reveal-btn text-left p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-400 transition">Профессия</button>
               <button data-card="health" class="reveal-btn text-left p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-400 transition">Здоровье</button>
               <button data-card="phobia" class="reveal-btn text-left p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-400 transition">Фобия</button>
             </div>
-            <p id="infoLog" class="text-sm text-slate-400 mt-4"></p>
+            <p id="infoLog" class="text-sm text-slate-300 mt-4"></p>
           </div>
         </div>
       </section>
@@ -70,123 +79,252 @@
         name: null,
         players: [],
         me: null,
+        ownerId: null,
       };
 
-      const lobbyEl = document.getElementById("lobby");
+      const authEl = document.getElementById("auth");
+      const authInfo = document.getElementById("authInfo");
       const gameEl = document.getElementById("game");
       const nameInput = document.getElementById("nameInput");
       const roomInput = document.getElementById("roomInput");
       const roomIdLabel = document.getElementById("roomIdLabel");
       const roundLabel = document.getElementById("roundLabel");
       const phaseLabel = document.getElementById("phaseLabel");
+      const disasterLabel = document.getElementById("disasterLabel");
+      const bunkerLabel = document.getElementById("bunkerLabel");
+      const conditionLabel = document.getElementById("conditionLabel");
       const playersList = document.getElementById("playersList");
       const infoLog = document.getElementById("infoLog");
+      const startGameBtn = document.getElementById("startGameBtn");
+
+      function logInfo(message) {
+        console.log(`[INFO] ${message}`);
+        infoLog.textContent = message;
+      }
+
+      function logError(message, error = null) {
+        console.error(`[ERROR] ${message}`, error || "");
+        infoLog.textContent = `Ошибка: ${message}`;
+      }
+
+      function validateName() {
+        const name = nameInput.value.trim();
+        if (!name) {
+          logError("Введите имя игрока");
+          return null;
+        }
+        return name;
+      }
+
+      function waitForSocketOpen() {
+        return new Promise((resolve, reject) => {
+          if (!state.ws) {
+            reject(new Error("WebSocket не создан"));
+            return;
+          }
+          if (state.ws.readyState === WebSocket.OPEN) {
+            resolve();
+            return;
+          }
+
+          const timeout = setTimeout(() => reject(new Error("Таймаут подключения WebSocket")), 5000);
+          state.ws.addEventListener("open", () => {
+            clearTimeout(timeout);
+            resolve();
+          }, { once: true });
+          state.ws.addEventListener("error", () => {
+            clearTimeout(timeout);
+            reject(new Error("Ошибка подключения WebSocket"));
+          }, { once: true });
+        });
+      }
 
       function connectWS() {
-        if (state.ws && state.ws.readyState === WebSocket.OPEN) return;
+        if (state.ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(state.ws.readyState)) {
+          return;
+        }
         const proto = window.location.protocol === "https:" ? "wss" : "ws";
         state.ws = new WebSocket(`${proto}://${window.location.host}/ws`);
+
+        state.ws.onopen = () => {
+          console.log("[WS] connected");
+          authInfo.textContent = "Соединение установлено";
+        };
+
+        state.ws.onclose = () => {
+          console.warn("[WS] closed");
+        };
+
+        state.ws.onerror = (event) => {
+          logError("Проблема с соединением", event);
+        };
 
         state.ws.onmessage = (event) => {
           let msg;
           try {
             msg = JSON.parse(event.data);
-          } catch {
-            infoLog.textContent = `Системное сообщение: ${event.data}`;
+          } catch (error) {
+            logError(`Системное сообщение: ${event.data}`, error);
             return;
           }
 
           const { event: type, data } = msg;
+          console.log("[WS] event", type, data);
 
           if (type === "error") {
-            infoLog.textContent = data.message;
+            logError(data?.message || "Неизвестная ошибка");
             return;
+          }
+
+          if (type === "room_created") {
+            authInfo.textContent = `Комната создана. ID: ${data.room_id}`;
           }
 
           if (type === "room_update") {
             state.roomId = data.room_id;
             state.players = data.players;
+            state.ownerId = data.owner_id;
             roomIdLabel.textContent = data.room_id;
             roundLabel.textContent = data.round;
             phaseLabel.textContent = data.phase;
+            disasterLabel.textContent = data.disaster || "—";
+            bunkerLabel.textContent = data.bunker || "—";
+            conditionLabel.textContent = data.survival_condition || "—";
 
-            if (!state.me) {
-              const me = state.players.find((p) => p.name === state.name);
-              if (me) state.me = me.id;
-            }
+            const me = state.players.find((p) => p.name === state.name || p.id === state.me);
+            if (me) state.me = me.id;
 
-            lobbyEl.classList.add("hidden");
+            authEl.classList.add("hidden");
             gameEl.classList.remove("hidden");
             renderPlayers();
+            refreshOwnerControls();
           }
 
           if (type === "game_started") {
-            infoLog.textContent = "Игра началась. Раскрывайте карты!";
+            logInfo("Игра началась! Карты розданы, условия выживания сгенерированы.");
           }
 
           if (type === "player_updated") {
-            infoLog.textContent = `Игрок раскрыл ${data.card}: ${data.value}`;
+            logInfo(`Игрок раскрыл ${data.card}: ${data.value}`);
           }
 
           if (type === "voting_results") {
-            infoLog.textContent = `Исключён игрок: ${data.eliminated_player_name}`;
+            logInfo(`Исключён игрок: ${data.eliminated_player_name}`);
           }
         };
       }
 
       function send(event, data = {}) {
-        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+          logError(`Кнопка не сработала: нет соединения для события ${event}`);
+          return;
+        }
         state.ws.send(JSON.stringify({ event, data }));
+      }
+
+      function refreshOwnerControls() {
+        const isOwner = state.me === state.ownerId;
+        startGameBtn.disabled = !isOwner;
+        startGameBtn.classList.toggle("opacity-50", !isOwner);
+        startGameBtn.title = isOwner ? "Запустить игру" : "Только создатель может запустить";
       }
 
       function renderPlayers() {
         playersList.innerHTML = "";
+
         state.players.forEach((player) => {
           const li = document.createElement("li");
           li.className = "p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 transition";
+
+          const isOwner = state.ownerId === state.me;
+          const isMe = player.id === state.me;
+
           li.innerHTML = `
-            <div class="flex items-center justify-between gap-2">
-              <div>
-                <p class="font-medium">${player.name} ${player.id === state.me ? "(Вы)" : ""}</p>
-                <p class="text-xs text-slate-400">${player.is_alive ? "Жив" : "Исключён"} · раскрыто: ${player.revealed.join(", ") || "-"}</p>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <p class="font-medium">${player.name} ${isMe ? "(Вы)" : ""} ${player.id === state.ownerId ? "👑" : ""}</p>
+                  <p class="text-xs text-slate-400">${player.is_alive ? "Жив" : "Исключён"} · раскрыто: ${player.revealed.join(", ") || "-"}</p>
+                </div>
+                ${!isMe && player.is_alive ? `<button class="vote-btn px-3 py-1 rounded-lg bg-rose-700 hover:bg-rose-600 transition" data-id="${player.id}">Голос</button>` : ""}
               </div>
-              ${player.id !== state.me && player.is_alive ? `<button class="vote-btn px-3 py-1 rounded-lg bg-rose-700 hover:bg-rose-600 transition" data-id="${player.id}">Голос</button>` : ""}
+              ${isOwner && !isMe ? `
+                <div class="flex gap-2">
+                  <button class="kick-btn px-2 py-1 rounded-lg bg-red-700 hover:bg-red-600 transition text-xs" data-id="${player.id}">Выгнать</button>
+                  <button class="rename-btn px-2 py-1 rounded-lg bg-amber-700 hover:bg-amber-600 transition text-xs" data-id="${player.id}" data-name="${player.name}">Переименовать</button>
+                </div>` : ""}
             </div>
           `;
           playersList.appendChild(li);
         });
 
         document.querySelectorAll(".vote-btn").forEach((btn) => {
+          btn.addEventListener("click", () => send("vote", { room_id: state.roomId, target_id: btn.dataset.id }));
+        });
+
+        document.querySelectorAll(".kick-btn").forEach((btn) => {
+          btn.addEventListener("click", () => send("kick_player", { room_id: state.roomId, target_id: btn.dataset.id }));
+        });
+
+        document.querySelectorAll(".rename-btn").forEach((btn) => {
           btn.addEventListener("click", () => {
-            send("vote", { room_id: state.roomId, target_id: btn.dataset.id });
+            const newName = prompt("Новое имя игрока", btn.dataset.name || "");
+            if (!newName) {
+              return;
+            }
+            send("rename_player", { room_id: state.roomId, target_id: btn.dataset.id, new_name: newName.trim() });
           });
         });
       }
 
-      document.getElementById("createRoomBtn").addEventListener("click", () => {
-        state.name = nameInput.value.trim() || "Игрок";
-        connectWS();
-        const waitOpen = setInterval(() => {
-          if (state.ws.readyState === WebSocket.OPEN) {
-            clearInterval(waitOpen);
-            send("create_room", { name: state.name });
-          }
-        }, 50);
+      document.getElementById("createRoomBtn").addEventListener("click", async () => {
+        const name = validateName();
+        if (!name) return;
+
+        try {
+          state.name = name;
+          connectWS();
+          await waitForSocketOpen();
+          send("create_room", { name: state.name });
+        } catch (error) {
+          logError("Не удалось создать лобби", error);
+        }
       });
 
-      document.getElementById("joinRoomBtn").addEventListener("click", () => {
-        state.name = nameInput.value.trim() || "Игрок";
+      document.getElementById("joinRoomBtn").addEventListener("click", async () => {
+        const name = validateName();
+        if (!name) return;
+
         const roomId = roomInput.value.trim().toUpperCase();
-        connectWS();
-        const waitOpen = setInterval(() => {
-          if (state.ws.readyState === WebSocket.OPEN) {
-            clearInterval(waitOpen);
-            send("join_room", { name: state.name, room_id: roomId });
-          }
-        }, 50);
+        if (!roomId) {
+          logError("Введите ID комнаты для подключения");
+          return;
+        }
+
+        try {
+          state.name = name;
+          connectWS();
+          await waitForSocketOpen();
+          send("join_room", { name: state.name, room_id: roomId });
+        } catch (error) {
+          logError("Не удалось подключиться к лобби", error);
+        }
       });
 
-      document.getElementById("startGameBtn").addEventListener("click", () => {
+      document.getElementById("copyRoomBtn").addEventListener("click", async () => {
+        if (!state.roomId) {
+          logError("ID комнаты пока не создан");
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(state.roomId);
+          logInfo(`ID ${state.roomId} скопирован в буфер обмена`);
+        } catch (error) {
+          logError("Не получилось скопировать ID", error);
+        }
+      });
+
+      startGameBtn.addEventListener("click", () => {
         send("start_game", { room_id: state.roomId });
       });
 
