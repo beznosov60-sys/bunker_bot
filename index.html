@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bunker Online</title>
+    <link rel="icon" href="data:," />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       .glass {
@@ -87,7 +88,14 @@
         state.ws = new WebSocket(`${proto}://${window.location.host}/ws`);
 
         state.ws.onmessage = (event) => {
-          const msg = JSON.parse(event.data);
+          let msg;
+          try {
+            msg = JSON.parse(event.data);
+          } catch {
+            infoLog.textContent = `Системное сообщение: ${event.data}`;
+            return;
+          }
+
           const { event: type, data } = msg;
 
           if (type === "error") {
