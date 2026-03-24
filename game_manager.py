@@ -2,10 +2,12 @@ import random
 import string
 from collections import Counter
 from dataclasses import dataclass, field
+import logging
 from typing import Any
 
 from fastapi import WebSocket
 
+logger = logging.getLogger(__name__)
 
 PROFESSIONS = [
     "Инженер",
@@ -33,6 +35,25 @@ PHOBIAS = [
     "Нет фобий",
     "Боязнь темноты",
 ]
+DISASTERS = [
+    "Глобальная пандемия",
+    "Ядерная зима",
+    "Падение метеорита",
+    "Экологический коллапс",
+    "Восстание ИИ",
+]
+BUNKERS = [
+    "Подземный военный бункер на 2 года",
+    "Научный комплекс с гидропоникой",
+    "Старый бункер с ограниченной вентиляцией",
+    "Современный автономный бункер с медблоком",
+]
+SURVIVAL_CONDITIONS = [
+    "Ограниченный запас воды на 6 месяцев",
+    "Нужно восстановить связь с внешним миром",
+    "Ожидаются набеги выживших групп",
+    "Система фильтрации воздуха повреждена",
+]
 
 
 @dataclass
@@ -57,17 +78,25 @@ class Player:
 class GameRoom:
     id: str
     players: dict[str, Player] = field(default_factory=dict)
+    owner_id: str | None = None
     state: str = "lobby"
     round: int = 1
     phase: str = "lobby"
     votes: dict[str, str] = field(default_factory=dict)
+    disaster: str | None = None
+    bunker: str | None = None
+    survival_condition: str | None = None
 
     def snapshot(self) -> dict[str, Any]:
         return {
             "room_id": self.id,
+            "owner_id": self.owner_id,
             "state": self.state,
             "round": self.round,
             "phase": self.phase,
+            "disaster": self.disaster,
+            "bunker": self.bunker,
+            "survival_condition": self.survival_condition,
             "players": [player.public_view() for player in self.players.values()],
         }
 
@@ -89,6 +118,7 @@ class GameManager:
         room_id = GameManager.generate_room_id()
         room = GameRoom(id=room_id)
         rooms[room_id] = room
+        logger.info("Created room %s", room_id)
         return room
 
     @staticmethod
@@ -107,14 +137,22 @@ class GameManager:
     def add_player(room: GameRoom, player_id: str, name: str, websocket: WebSocket) -> Player:
         player = Player(id=player_id, name=name, websocket=websocket, cards=GameManager.generate_cards())
         room.players[player_id] = player
+        if room.owner_id is None:
+            room.owner_id = player_id
+        logger.info("Player %s (%s) joined room %s", name, player_id, room.id)
         return player
 
     @staticmethod
     def remove_player(room: GameRoom, player_id: str) -> None:
+        logger.info("Removing player %s from room %s", player_id, room.id)
         room.players.pop(player_id, None)
         room.votes = {k: v for k, v in room.votes.items() if k != player_id and v != player_id}
+        if room.owner_id == player_id:
+            room.owner_id = next(iter(room.players), None)
+            logger.info("Room %s new owner is %s", room.id, room.owner_id)
         if not room.players:
             rooms.pop(room.id, None)
+            logger.info("Deleted empty room %s", room.id)
 
     @staticmethod
     async def broadcast(room: GameRoom, message: dict[str, Any]) -> None:
@@ -123,6 +161,7 @@ class GameManager:
             try:
                 await player.websocket.send_json(message)
             except Exception:
+                logger.exception("Failed to send message to player %s in room %s", player.id, room.id)
                 disconnected.append(player.id)
 
         for player_id in disconnected:
@@ -134,12 +173,23 @@ class GameManager:
         room.phase = "reveal"
         room.round = 1
         room.votes.clear()
+        room.disaster = random.choice(DISASTERS)
+        room.bunker = random.choice(BUNKERS)
+        room.survival_condition = random.choice(SURVIVAL_CONDITIONS)
+        logger.info(
+            "Started game in room %s: disaster=%s bunker=%s condition=%s",
+            room.id,
+            room.disaster,
+            room.bunker,
+            room.survival_condition,
+        )
         await GameManager.broadcast(room, {"event": "game_started", "data": room.snapshot()})
 
     @staticmethod
     async def reveal_card(room: GameRoom, player_id: str, card_key: str) -> dict[str, Any] | None:
         player = room.players.get(player_id)
         if not player or card_key not in player.cards:
+            logger.warning("Invalid reveal card request room=%s player=%s card=%s", room.id, player_id, card_key)
             return None
 
         player.revealed.add(card_key)
@@ -159,6 +209,7 @@ class GameManager:
         voter = room.players.get(voter_id)
         target = room.players.get(target_id)
         if not voter or not target or not voter.is_alive or not target.is_alive:
+            logger.warning("Invalid vote room=%s voter=%s target=%s", room.id, voter_id, target_id)
             return None
 
         room.votes[voter_id] = target_id
@@ -188,3 +239,22 @@ class GameManager:
         await GameManager.broadcast(room, result_payload)
         await GameManager.broadcast(room, {"event": "room_update", "data": room.snapshot()})
         return result_payload
+
+    @staticmethod
+    def rename_player(room: GameRoom, actor_id: str, target_id: str, new_name: str) -> bool:
+        if room.owner_id != actor_id:
+            return False
+        player = room.players.get(target_id)
+        if not player:
+            return False
+        player.name = new_name
+        logger.info("Player %s renamed to %s in room %s", target_id, new_name, room.id)
+        return True
+
+    @staticmethod
+    def kick_player(room: GameRoom, actor_id: str, target_id: str) -> bool:
+        if room.owner_id != actor_id or actor_id == target_id or target_id not in room.players:
+            return False
+        GameManager.remove_player(room, target_id)
+        logger.info("Player %s kicked from room %s by owner %s", target_id, room.id, actor_id)
+        return True
